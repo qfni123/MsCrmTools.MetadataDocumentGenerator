@@ -118,6 +118,9 @@ namespace MsCrmTools.MetadataDocumentGenerator.Generation
             sheet.Cells[lineNumber, y].Value = amd.SchemaName;
             y++;
 
+            sheet.Cells[lineNumber, y].Value = amd.ExternalName;
+            y++;
+
             var amdDisplayName = amd.DisplayName.LocalizedLabels.FirstOrDefault(l => l.LanguageCode == settings.DisplayNamesLangugageCode);
             sheet.Cells[lineNumber, y].Value = amd.DisplayName.LocalizedLabels.Count == 0 ? "N/A" : amdDisplayName != null ? amdDisplayName.Label : "";
             y++;
@@ -984,6 +987,9 @@ namespace MsCrmTools.MetadataDocumentGenerator.Generation
             y++;
 
             sheet.Cells[x, y].Value = "Schema Name";
+            y++;
+
+            sheet.Cells[x, y].Value = "External Name";
             y++;
 
             sheet.Cells[x, y].Value = "Display Name";
