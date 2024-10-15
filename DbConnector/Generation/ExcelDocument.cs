@@ -1,3 +1,4 @@
+using Microsoft.Data.SqlClient;
 using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Sdk.Messages;
 using Microsoft.Xrm.Sdk.Metadata;
@@ -13,6 +14,7 @@ using System.IO;
 using System.Linq;
 using System.Xml;
 using LicenseContext = OfficeOpenXml.LicenseContext;
+
 
 namespace MsCrmTools.MetadataDocumentGenerator.Generation
 {
@@ -91,10 +93,8 @@ namespace MsCrmTools.MetadataDocumentGenerator.Generation
         /// </summary>
         /// <param name="amd">Attribute metadata</param>
         /// <param name="sheet">Worksheet where to write</param>
-        public void AddAttribute(AttributeMetadata amd, ExcelWorksheet sheet)
+        public void AddAttribute(AttributeMetadata amd, ColumnMetadata columnMetadata, ExcelWorksheet sheet)
         {
-            var x = DatabaseMetadataUtils.GetTableColumns("Activity");
-
             var y = 1;
 
             if (!attributesHeaderAdded)
@@ -145,24 +145,15 @@ namespace MsCrmTools.MetadataDocumentGenerator.Generation
             }
             y++;
 
+            sheet.Cells[lineNumber, y].Value = columnMetadata == null ? string.Empty : columnMetadata.ColumnName;
+            y++;
+
+            sheet.Cells[lineNumber, y].Value = columnMetadata == null ? string.Empty : columnMetadata.DataType;
+            y++;
+
             var amdDisplayName = amd.DisplayName.LocalizedLabels.FirstOrDefault(l => l.LanguageCode == settings.DisplayNamesLangugageCode);
             sheet.Cells[lineNumber, y].Value = amd.DisplayName.LocalizedLabels.Count == 0 ? "N/A" : amdDisplayName != null ? amdDisplayName.Label : "";
             y++;
-
-            //if (amd.AttributeType != null) sheet.Cells[lineNumber, y].Value = GetNewTypeName(amd.AttributeType.Value);
-            //if (amd.AttributeType.Value == AttributeTypeCode.Virtual && amd is MultiSelectPicklistAttributeMetadata)
-            //{
-            //    sheet.Cells[lineNumber, y].Value = "Choices";
-            //}
-            //else if (amd.AttributeType.Value == AttributeTypeCode.Virtual && amd is ImageAttributeMetadata)
-            //{
-            //    sheet.Cells[lineNumber, y].Value = "Image";
-            //}
-            //else if (amd.AttributeType.Value == AttributeTypeCode.Virtual && amd is FileAttributeMetadata)
-            //{
-            //    sheet.Cells[lineNumber, y].Value = "File";
-            //}
-            //y++;
 
             var amdDescription = amd.Description.LocalizedLabels.FirstOrDefault(l => l.LanguageCode == settings.DisplayNamesLangugageCode);
             sheet.Cells[lineNumber, y].Value = amd.Description.LocalizedLabels.Count == 0 ? "N/A" : amdDescription != null ? amdDescription.Label : "";
@@ -274,6 +265,12 @@ namespace MsCrmTools.MetadataDocumentGenerator.Generation
             AddAdditionalData(lineNumber, y, amd, sheet);
         }
 
+        public void AddColumnNotUsed(string columnName, ExcelWorksheet sheet)
+        {
+            lineNumber++;
+            sheet.Cells[lineNumber, 5].Value = columnName;
+        }
+
         /// <summary>
         /// Adds metadata of an entity
         /// </summary>
@@ -290,6 +287,13 @@ namespace MsCrmTools.MetadataDocumentGenerator.Generation
             sheet.Cells[lineNumber, 1].Style.Font.Bold = true;
             var emdDisplayName = emd.DisplayName.LocalizedLabels.FirstOrDefault(l => l.LanguageCode == settings.DisplayNamesLangugageCode);
             sheet.Cells[lineNumber, 2].Value = emd.DisplayName.LocalizedLabels.Count == 0 ? emd.SchemaName : emdDisplayName != null ? emdDisplayName.Label : null;
+            lineNumber++;
+
+            sheet.Cells[lineNumber, 1].Value = "SQL Table Name";
+            sheet.Cells[lineNumber, 1].Style.Fill.PatternType = ExcelFillStyle.Solid;
+            sheet.Cells[lineNumber, 1].Style.Fill.BackgroundColor.SetColor(Color.PowderBlue);
+            sheet.Cells[lineNumber, 1].Style.Font.Bold = true;
+            sheet.Cells[lineNumber, 2].Value = emd.ExternalName;
             lineNumber++;
 
             sheet.Cells[lineNumber, 1].Value = "Plural Display Name";
@@ -381,6 +385,8 @@ namespace MsCrmTools.MetadataDocumentGenerator.Generation
                 sheet.Cells[summaryLineNumber, y].Hyperlink = new ExcelHyperLink($"'{worksheetName}'!A1", displayName);
             }
             y++;
+
+            sheet.Cells[summaryLineNumber, y].Value = emd.ExternalName;
 
             var emdDisplayCollectionName = emd.DisplayCollectionName.LocalizedLabels.FirstOrDefault(l => l.LanguageCode == settings.DisplayNamesLangugageCode);
             sheet.Cells[summaryLineNumber, y].Value = emd.DisplayCollectionName.LocalizedLabels.Count == 0 ? "N/A" : emdDisplayCollectionName != null ? emdDisplayCollectionName.Label : null;
@@ -484,7 +490,7 @@ namespace MsCrmTools.MetadataDocumentGenerator.Generation
             return sheet;
         }
 
-        public void Generate(IOrganizationService service)
+        public void Generate(IOrganizationService service, SqlConnection sqlConnection)
         {
             ExcelWorksheet summarySheet = null;
             if (settings.AddEntitiesSummary)
@@ -659,12 +665,23 @@ namespace MsCrmTools.MetadataDocumentGenerator.Generation
                     )
                     ).ToList();
                 }
-
+                var columnMetadataSet = DatabaseMetadataUtils.GetTableColumns(sqlConnection, emd.ExternalName);
                 if (amds.Any())
                 {
-                    foreach (var amd in amds.Distinct(new AttributeMetadataComparer()).OrderBy(a => a.ExternalName).ThenBy(a => a.LogicalName))
+                    var sortedAmds = amds.Distinct(new AttributeMetadataComparer()).OrderBy(a => a.ExternalName).ThenBy(a => a.LogicalName);
+
+                    foreach (var amd in sortedAmds)
                     {
-                        AddAttribute(emd.Attributes.FirstOrDefault(x => x.LogicalName == amd.LogicalName), sheet);
+                        var columnMetadata = string.IsNullOrEmpty(amd.ExternalName) ? null : columnMetadataSet.FirstOrDefault(cm => cm.ColumnName == amd.ExternalName);
+                        AddAttribute(emd.Attributes.FirstOrDefault(x => x.LogicalName == amd.LogicalName), columnMetadata, sheet);
+                    }
+
+                    var externalNames = sortedAmds.Where(amd => !string.IsNullOrEmpty(amd.ExternalName)).Select(a => a.ExternalName).ToList();
+                    var columnNames = columnMetadataSet.Where(cm => !string.IsNullOrEmpty(cm.ColumnName)).Select(c => c.ColumnName).ToList();
+                    var columnsNotInUse = columnNames.Where(cn => !externalNames.Contains(cn)).ToList();
+                    foreach (var cn in columnsNotInUse)
+                    {
+                        AddColumnNotUsed(cn, sheet);
                     }
                 }
                 else
@@ -1019,6 +1036,12 @@ namespace MsCrmTools.MetadataDocumentGenerator.Generation
             sheet.Cells[x, y].Value = "Data Type in Dataverse";
             y++;
 
+            sheet.Cells[x, y].Value = "SQL Table Column";
+            y++;
+
+            sheet.Cells[x, y].Value = "SQL Column Type";
+            y++;
+
             sheet.Cells[x, y].Value = "Display Name";
             y++;
 
@@ -1090,6 +1113,9 @@ namespace MsCrmTools.MetadataDocumentGenerator.Generation
             sheet.Cells[x, y].Value = "Entity";
             y++;
 
+            sheet.Cells[x, y].Value = "SQL Table Name";
+            y++;
+
             sheet.Cells[x, y].Value = "Plural Display Name";
             y++;
 
@@ -1134,8 +1160,8 @@ namespace MsCrmTools.MetadataDocumentGenerator.Generation
 
         private void ReportProgress(int percentage, string message)
         {
-            if (worker.WorkerReportsProgress)
-                worker.ReportProgress(percentage, message);
+            //if (worker.WorkerReportsProgress)
+            //    worker.ReportProgress(percentage, message);
         }
 
         #endregion Methods
