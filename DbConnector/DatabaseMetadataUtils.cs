@@ -33,6 +33,22 @@ namespace MsCrmTools.MetadataDocumentGenerator
             return new List<ColumnMetadata>();
         }
 
+        public static List<string> GetTables(SqlConnection conn)
+        {
+            var cmdText = "select '[ODC].['+ t.name + ']' as TableName from sys.tables t where schema_name(t.schema_id) = 'ODC' order by TableName";
+
+            try
+            {
+                return DatabaseUtils.GetMultipleEntities<string>(conn, cmdText, null, CommandType.Text, 30, ToTableName, null, true);
+            }
+            catch (Exception e)
+            {
+            }
+
+            return new List<string>();
+        }
+
+
         private static ColumnMetadata ToColumnMetadata(SqlDataReader dataReader)
         {
             if (dataReader == null)
@@ -45,6 +61,16 @@ namespace MsCrmTools.MetadataDocumentGenerator
                 ColumnName = dataReader.GetFieldValue<string>("ColumnName"),
                 DataType = dataReader.GetFieldValue<string>("DataType"),
             };
+        }
+
+        private static string ToTableName(SqlDataReader dataReader)
+        {
+            if (dataReader == null)
+            {
+                return null;
+            }
+
+            return dataReader.GetFieldValue<string>("TableName");
         }
     }
 }

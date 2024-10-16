@@ -117,31 +117,38 @@ namespace MsCrmTools.MetadataDocumentGenerator.Generation
             sheet.Cells[lineNumber, y].Value = amd.LogicalName;
             y++;
 
-            sheet.Cells[lineNumber, y].Value = amd.SchemaName;
-            y++;
+            //sheet.Cells[lineNumber, y].Value = amd.SchemaName;
+            //y++;
 
             sheet.Cells[lineNumber, y].Value = amd.ExternalName;
             y++;
 
+            var typeValue = string.Empty;
             if (amd is StringAttributeMetadata stringAmd)
             {
-                sheet.Cells[lineNumber, y].Value = $"varchar({stringAmd.MaxLength})";
+                typeValue = $"varchar({stringAmd.MaxLength})";
             }
             else if (amd is MemoAttributeMetadata memoAmd)
             {
-                sheet.Cells[lineNumber, y].Value = $"varchar({memoAmd.MaxLength})";
+                typeValue = $"varchar({memoAmd.MaxLength})";
             }
             else if (amd is LookupAttributeMetadata dtAmd)
             {
-                sheet.Cells[lineNumber, y].Value = "datetime2(8)";
+                typeValue = "datetime2(8)";
             }
             else if (amd is LookupAttributeMetadata lookupAmd)
             {
-                sheet.Cells[lineNumber, y].Value = "uniqueidentifier";
+                typeValue = "uniqueidentifier";
             }
             else
             {
-                sheet.Cells[lineNumber, y].Value = amd.AttributeTypeName.Value.Replace("Type", string.Empty).ToLower();
+                typeValue = amd.AttributeTypeName.Value.Replace("Type", string.Empty).ToLower();
+            }
+            
+            sheet.Cells[lineNumber, y].Value = typeValue;
+            if (typeValue.StartsWith("varchar") && columnMetadata != null && typeValue != columnMetadata.DataType)
+            {
+                sheet.Cells[lineNumber, y].Style.Font.Color.SetColor(Color.Red);
             }
             y++;
 
@@ -149,126 +156,133 @@ namespace MsCrmTools.MetadataDocumentGenerator.Generation
             y++;
 
             sheet.Cells[lineNumber, y].Value = columnMetadata == null ? string.Empty : columnMetadata.DataType;
-            y++;
 
-            var amdDisplayName = amd.DisplayName.LocalizedLabels.FirstOrDefault(l => l.LanguageCode == settings.DisplayNamesLangugageCode);
-            sheet.Cells[lineNumber, y].Value = amd.DisplayName.LocalizedLabels.Count == 0 ? "N/A" : amdDisplayName != null ? amdDisplayName.Label : "";
-            y++;
-
-            var amdDescription = amd.Description.LocalizedLabels.FirstOrDefault(l => l.LanguageCode == settings.DisplayNamesLangugageCode);
-            sheet.Cells[lineNumber, y].Value = amd.Description.LocalizedLabels.Count == 0 ? "N/A" : amdDescription != null ? amdDescription.Label : "";
-            y++;
-
-            sheet.Cells[lineNumber, y].Value = (amd.IsCustomAttribute != null && amd.IsCustomAttribute.Value).ToString(CultureInfo.InvariantCulture);
-            y++;
-
-            sheet.Cells[lineNumber, y].Value = (amd.SourceType ?? 0) == 0 ? "Simple" : (amd.SourceType ?? 0) == 1 ? "Calculated" : "Rollup";
-            y++;
-
-            if (settings.AddRequiredLevelInformation)
+            if (typeValue.StartsWith("varchar") && columnMetadata != null && typeValue != columnMetadata.DataType)
             {
-                sheet.Cells[lineNumber, y].Value = amd.RequiredLevel.Value.ToString();
-                y++;
+                sheet.Cells[lineNumber, y].Style.Font.Color.SetColor(Color.Red);
             }
 
-            if (settings.AddValidForAdvancedFind)
-            {
-                sheet.Cells[lineNumber, y].Value = amd.IsValidForAdvancedFind.Value.ToString(CultureInfo.InvariantCulture);
-                y++;
-            }
+            y++;
 
-            if (settings.AddAuditInformation)
-            {
-                sheet.Cells[lineNumber, y].Value = amd.IsAuditEnabled.Value.ToString(CultureInfo.InvariantCulture);
-                y++;
-            }
+            //var amdDisplayName = amd.DisplayName.LocalizedLabels.FirstOrDefault(l => l.LanguageCode == settings.DisplayNamesLangugageCode);
+            //sheet.Cells[lineNumber, y].Value = amd.DisplayName.LocalizedLabels.Count == 0 ? "N/A" : amdDisplayName != null ? amdDisplayName.Label : "";
+            //y++;
 
-            if (settings.AddFieldSecureInformation)
-            {
-                sheet.Cells[lineNumber, y].Value = (amd.IsSecured != null && amd.IsSecured.Value).ToString(CultureInfo.InvariantCulture);
-                y++;
-            }
+            //var amdDescription = amd.Description.LocalizedLabels.FirstOrDefault(l => l.LanguageCode == settings.DisplayNamesLangugageCode);
+            //sheet.Cells[lineNumber, y].Value = amd.Description.LocalizedLabels.Count == 0 ? "N/A" : amdDescription != null ? amdDescription.Label : "";
+            //y++;
 
-            if (settings.AddFormLocation)
-            {
-                var entity = settings.EntitiesToProceed.FirstOrDefault(e => e.Name == amd.EntityLogicalName);
-                if (entity != null)
-                {
-                    foreach (var form in entity.FormsDefinitions.Where(fd => entity.Forms.Contains(fd.Id) || entity.Forms.Count == 0))
-                    {
-                        var formName = form.GetAttributeValue<string>("name");
-                        var xmlDocument = new XmlDocument();
-                        xmlDocument.LoadXml(form["formxml"].ToString());
+            //sheet.Cells[lineNumber, y].Value = (amd.IsCustomAttribute != null && amd.IsCustomAttribute.Value).ToString(CultureInfo.InvariantCulture);
+            //y++;
 
-                        var controlNode = xmlDocument.SelectSingleNode("//control[@datafieldname='" + amd.LogicalName + "']");
-                        if (controlNode != null)
-                        {
-                            XmlNodeList sectionNodes = controlNode.SelectNodes("ancestor::section");
-                            XmlNodeList headerNodes = controlNode.SelectNodes("ancestor::header");
-                            XmlNodeList footerNodes = controlNode.SelectNodes("ancestor::footer");
+            //sheet.Cells[lineNumber, y].Value = (amd.SourceType ?? 0) == 0 ? "Simple" : (amd.SourceType ?? 0) == 1 ? "Calculated" : "Rollup";
+            //y++;
 
-                            if (sectionNodes.Count > 0)
-                            {
-                                if (sectionNodes[0].SelectSingleNode("labels/label[@languagecode='" + settings.DisplayNamesLangugageCode + "']") != null)
-                                {
-                                    var sectionName = sectionNodes[0].SelectSingleNode("labels/label[@languagecode='" + settings.DisplayNamesLangugageCode + "']").Attributes["description"].Value;
+            //if (settings.AddRequiredLevelInformation)
+            //{
+            //    sheet.Cells[lineNumber, y].Value = amd.RequiredLevel.Value.ToString();
+            //    y++;
+            //}
 
-                                    XmlNode tabNode = sectionNodes[0].SelectNodes("ancestor::tab")[0];
-                                    if (tabNode != null && tabNode.SelectSingleNode("labels/label[@languagecode='" + settings.DisplayNamesLangugageCode + "']") != null)
-                                    {
-                                        var tabName = tabNode.SelectSingleNode("labels/label[@languagecode='" + settings.DisplayNamesLangugageCode + "']").Attributes["description"].Value;
+            //if (settings.AddValidForAdvancedFind)
+            //{
+            //    sheet.Cells[lineNumber, y].Value = amd.IsValidForAdvancedFind.Value.ToString(CultureInfo.InvariantCulture);
+            //    y++;
+            //}
 
-                                        if (sheet.Cells[lineNumber, y].Value != null)
-                                        {
-                                            sheet.Cells[lineNumber, y].Value = sheet.Cells[lineNumber, y].Value + "\r\n" + string.Format("{0}/{1}/{2}", formName, tabName, sectionName);
-                                        }
-                                        else
-                                        {
-                                            sheet.Cells[lineNumber, y].Value = string.Format("{0}/{1}/{2}", formName, tabName, sectionName);
-                                        }
-                                    }
-                                }
-                            }
-                            else if (headerNodes.Count > 0)
-                            {
-                                if (sheet.Cells[lineNumber, y].Value != null)
-                                {
-                                    sheet.Cells[lineNumber, y].Value = sheet.Cells[lineNumber, y].Value + "\r\n" + string.Format("{0}/Header", formName);
-                                }
-                                else
-                                {
-                                    sheet.Cells[lineNumber, y].Value = string.Format("{0}/Header", formName);
-                                }
-                            }
-                            else if (footerNodes.Count > 0)
-                            {
-                                if (sheet.Cells[lineNumber, y].Value != null)
-                                {
-                                    sheet.Cells[lineNumber, y].Value = sheet.Cells[lineNumber, y].Value + "\r\n" + string.Format("{0}/Footer", formName);
-                                }
-                                else
-                                {
-                                    sheet.Cells[lineNumber, y].Value = string.Format("{0}/Footer", formName);
-                                }
-                            }
-                        }
-                    }
-                }
+            //if (settings.AddAuditInformation)
+            //{
+            //    sheet.Cells[lineNumber, y].Value = amd.IsAuditEnabled.Value.ToString(CultureInfo.InvariantCulture);
+            //    y++;
+            //}
 
-                sheet.Column(y).PageBreak = true;
+            //if (settings.AddFieldSecureInformation)
+            //{
+            //    sheet.Cells[lineNumber, y].Value = (amd.IsSecured != null && amd.IsSecured.Value).ToString(CultureInfo.InvariantCulture);
+            //    y++;
+            //}
 
-                y++;
-            }
+            //if (settings.AddFormLocation)
+            //{
+            //    var entity = settings.EntitiesToProceed.FirstOrDefault(e => e.Name == amd.EntityLogicalName);
+            //    if (entity != null)
+            //    {
+            //        foreach (var form in entity.FormsDefinitions.Where(fd => entity.Forms.Contains(fd.Id) || entity.Forms.Count == 0))
+            //        {
+            //            var formName = form.GetAttributeValue<string>("name");
+            //            var xmlDocument = new XmlDocument();
+            //            xmlDocument.LoadXml(form["formxml"].ToString());
+
+            //            var controlNode = xmlDocument.SelectSingleNode("//control[@datafieldname='" + amd.LogicalName + "']");
+            //            if (controlNode != null)
+            //            {
+            //                XmlNodeList sectionNodes = controlNode.SelectNodes("ancestor::section");
+            //                XmlNodeList headerNodes = controlNode.SelectNodes("ancestor::header");
+            //                XmlNodeList footerNodes = controlNode.SelectNodes("ancestor::footer");
+
+            //                if (sectionNodes.Count > 0)
+            //                {
+            //                    if (sectionNodes[0].SelectSingleNode("labels/label[@languagecode='" + settings.DisplayNamesLangugageCode + "']") != null)
+            //                    {
+            //                        var sectionName = sectionNodes[0].SelectSingleNode("labels/label[@languagecode='" + settings.DisplayNamesLangugageCode + "']").Attributes["description"].Value;
+
+            //                        XmlNode tabNode = sectionNodes[0].SelectNodes("ancestor::tab")[0];
+            //                        if (tabNode != null && tabNode.SelectSingleNode("labels/label[@languagecode='" + settings.DisplayNamesLangugageCode + "']") != null)
+            //                        {
+            //                            var tabName = tabNode.SelectSingleNode("labels/label[@languagecode='" + settings.DisplayNamesLangugageCode + "']").Attributes["description"].Value;
+
+            //                            if (sheet.Cells[lineNumber, y].Value != null)
+            //                            {
+            //                                sheet.Cells[lineNumber, y].Value = sheet.Cells[lineNumber, y].Value + "\r\n" + string.Format("{0}/{1}/{2}", formName, tabName, sectionName);
+            //                            }
+            //                            else
+            //                            {
+            //                                sheet.Cells[lineNumber, y].Value = string.Format("{0}/{1}/{2}", formName, tabName, sectionName);
+            //                            }
+            //                        }
+            //                    }
+            //                }
+            //                else if (headerNodes.Count > 0)
+            //                {
+            //                    if (sheet.Cells[lineNumber, y].Value != null)
+            //                    {
+            //                        sheet.Cells[lineNumber, y].Value = sheet.Cells[lineNumber, y].Value + "\r\n" + string.Format("{0}/Header", formName);
+            //                    }
+            //                    else
+            //                    {
+            //                        sheet.Cells[lineNumber, y].Value = string.Format("{0}/Header", formName);
+            //                    }
+            //                }
+            //                else if (footerNodes.Count > 0)
+            //                {
+            //                    if (sheet.Cells[lineNumber, y].Value != null)
+            //                    {
+            //                        sheet.Cells[lineNumber, y].Value = sheet.Cells[lineNumber, y].Value + "\r\n" + string.Format("{0}/Footer", formName);
+            //                    }
+            //                    else
+            //                    {
+            //                        sheet.Cells[lineNumber, y].Value = string.Format("{0}/Footer", formName);
+            //                    }
+            //                }
+            //            }
+            //        }
+            //    }
+
+            //    sheet.Column(y).PageBreak = true;
+
+            //    y++;
+            //}
 
             sheet.Column(y).PageBreak = true;
 
-            AddAdditionalData(lineNumber, y, amd, sheet);
+            // AddAdditionalData(lineNumber, y, amd, sheet);
         }
 
         public void AddColumnNotUsed(string columnName, ExcelWorksheet sheet)
         {
             lineNumber++;
             sheet.Cells[lineNumber, 5].Value = columnName;
+            sheet.Cells[lineNumber, 5].Style.Font.Color.SetColor(Color.Red);
         }
 
         /// <summary>
@@ -363,6 +377,13 @@ namespace MsCrmTools.MetadataDocumentGenerator.Generation
             lineNumber++;
         }
 
+        public void AddSqlTableNotInUserToSummary(string tableName, ExcelWorksheet sheet)
+        {
+            summaryLineNumber++;
+            sheet.Cells[summaryLineNumber, 2].Value = tableName;
+            sheet.Cells[summaryLineNumber, 2].Style.Font.Color.SetColor(Color.Red);
+        }
+
         public void AddEntityMetadataInLine(EntityMetadata emd, ExcelWorksheet sheet, bool generateOnlyOneTable, string worksheetName)
         {
             var y = 1;
@@ -388,44 +409,44 @@ namespace MsCrmTools.MetadataDocumentGenerator.Generation
 
             sheet.Cells[summaryLineNumber, y].Value = emd.ExternalName;
 
-            var emdDisplayCollectionName = emd.DisplayCollectionName.LocalizedLabels.FirstOrDefault(l => l.LanguageCode == settings.DisplayNamesLangugageCode);
-            sheet.Cells[summaryLineNumber, y].Value = emd.DisplayCollectionName.LocalizedLabels.Count == 0 ? "N/A" : emdDisplayCollectionName != null ? emdDisplayCollectionName.Label : null;
-            y++;
+            //var emdDisplayCollectionName = emd.DisplayCollectionName.LocalizedLabels.FirstOrDefault(l => l.LanguageCode == settings.DisplayNamesLangugageCode);
+            //sheet.Cells[summaryLineNumber, y].Value = emd.DisplayCollectionName.LocalizedLabels.Count == 0 ? "N/A" : emdDisplayCollectionName != null ? emdDisplayCollectionName.Label : null;
+            //y++;
 
-            var emdDescription = emd.Description.LocalizedLabels.FirstOrDefault(l => l.LanguageCode == settings.DisplayNamesLangugageCode);
-            sheet.Cells[summaryLineNumber, y].Value = emd.Description.LocalizedLabels.Count == 0 ? "N/A" : emdDescription != null ? emdDescription.Label : null;
-            y++;
+            //var emdDescription = emd.Description.LocalizedLabels.FirstOrDefault(l => l.LanguageCode == settings.DisplayNamesLangugageCode);
+            //sheet.Cells[summaryLineNumber, y].Value = emd.Description.LocalizedLabels.Count == 0 ? "N/A" : emdDescription != null ? emdDescription.Label : null;
+            //y++;
 
-            sheet.Cells[summaryLineNumber, y].Value = emd.SchemaName;
-            y++;
+            //sheet.Cells[summaryLineNumber, y].Value = emd.SchemaName;
+            //y++;
 
-            sheet.Cells[summaryLineNumber, y].Value = emd.LogicalName;
-            y++;
+            //sheet.Cells[summaryLineNumber, y].Value = emd.LogicalName;
+            //y++;
 
-            if (emd.ObjectTypeCode != null) sheet.Cells[summaryLineNumber, y].Value = emd.ObjectTypeCode.Value;
-            y++;
+            //if (emd.ObjectTypeCode != null) sheet.Cells[summaryLineNumber, y].Value = emd.ObjectTypeCode.Value;
+            //y++;
 
-            sheet.Cells[summaryLineNumber, y].Value = emd.IsCustomEntity != null && emd.IsCustomEntity.Value;
-            y++;
+            //sheet.Cells[summaryLineNumber, y].Value = emd.IsCustomEntity != null && emd.IsCustomEntity.Value;
+            //y++;
 
-            if (settings.AddAuditInformation)
-            {
-                if (emd.IsAuditEnabled != null) sheet.Cells[summaryLineNumber, y].Value = emd.IsAuditEnabled.Value;
-                y++;
-            }
+            //if (settings.AddAuditInformation)
+            //{
+            //    if (emd.IsAuditEnabled != null) sheet.Cells[summaryLineNumber, y].Value = emd.IsAuditEnabled.Value;
+            //    y++;
+            //}
 
-            if (emd.OwnershipType != null)
-            {
-                sheet.Cells[summaryLineNumber, y].Value = emd.OwnershipType.Value;
-                y++;
-            }
+            //if (emd.OwnershipType != null)
+            //{
+            //    sheet.Cells[summaryLineNumber, y].Value = emd.OwnershipType.Value;
+            //    y++;
+            //}
 
-            var theType = typeof(EntityMetadata);
-            foreach (var property in theType.GetProperties().OrderBy(p => p.Name))
-            {
-                sheet.Cells[summaryLineNumber, y].Value = GetRealValue(property.GetValue(emd, null));
-                y++;
-            }
+            //var theType = typeof(EntityMetadata);
+            //foreach (var property in theType.GetProperties().OrderBy(p => p.Name))
+            //{
+            //    sheet.Cells[summaryLineNumber, y].Value = GetRealValue(property.GetValue(emd, null));
+            //    y++;
+            //}
         }
 
         /// <summary>
@@ -501,6 +522,7 @@ namespace MsCrmTools.MetadataDocumentGenerator.Generation
             int totalEntities = settings.EntitiesToProceed.Count;
             int processed = 0;
             ExcelWorksheet sheet = AddWorkSheet("Metadata");
+            var tableUsedInDataverse = new List<string>();
 
             foreach (var entity in settings.EntitiesToProceed.OrderBy(e => e.Name))
             {
@@ -519,6 +541,8 @@ namespace MsCrmTools.MetadataDocumentGenerator.Generation
                     emdCache.Add(reResponse.EntityMetadata);
                     emd = reResponse.EntityMetadata;
                 }
+
+                tableUsedInDataverse.Add(emd.ExternalName);
 
                 if (!settings.GenerateOnlyOneTable)
                     lineNumber = 1;
@@ -692,6 +716,13 @@ namespace MsCrmTools.MetadataDocumentGenerator.Generation
                 sheet.Cells[sheet.Dimension.Address].AutoFitColumns();
 
                 processed++;
+            }
+
+            var sqlTableList = DatabaseMetadataUtils.GetTables(sqlConnection);
+            var sqlTablesNotUsed = sqlTableList.Where(t => !tableUsedInDataverse.Contains(t)).ToList();
+            foreach (var sqlTable in sqlTablesNotUsed)
+            {
+                this.AddSqlTableNotInUserToSummary(sqlTable, summarySheet);
             }
 
             if (settings.AddEntitiesSummary)
@@ -1027,8 +1058,8 @@ namespace MsCrmTools.MetadataDocumentGenerator.Generation
             sheet.Cells[x, y].Value = "Logical Name";
             y++;
 
-            sheet.Cells[x, y].Value = "Schema Name";
-            y++;
+            //sheet.Cells[x, y].Value = "Schema Name";
+            //y++;
 
             sheet.Cells[x, y].Value = "External Name";
             y++;
@@ -1042,53 +1073,53 @@ namespace MsCrmTools.MetadataDocumentGenerator.Generation
             sheet.Cells[x, y].Value = "SQL Column Type";
             y++;
 
-            sheet.Cells[x, y].Value = "Display Name";
-            y++;
+            //sheet.Cells[x, y].Value = "Display Name";
+            //y++;
 
-            sheet.Cells[x, y].Value = "Attribute Type";
-            y++;
+            //sheet.Cells[x, y].Value = "Attribute Type";
+            //y++;
 
-            sheet.Cells[x, y].Value = "Description";
-            y++;
+            //sheet.Cells[x, y].Value = "Description";
+            //y++;
 
-            sheet.Cells[x, y].Value = "Custom Attribute";
-            y++;
+            //sheet.Cells[x, y].Value = "Custom Attribute";
+            //y++;
 
-            sheet.Cells[x, y].Value = "Type";
-            y++;
+            //sheet.Cells[x, y].Value = "Type";
+            //y++;
 
-            if (settings.AddRequiredLevelInformation)
-            {
-                sheet.Cells[x, y].Value = "Required Level";
-                y++;
-            }
+            //if (settings.AddRequiredLevelInformation)
+            //{
+            //    sheet.Cells[x, y].Value = "Required Level";
+            //    y++;
+            //}
 
-            if (settings.AddValidForAdvancedFind)
-            {
-                sheet.Cells[x, y].Value = "ValidFor AdvancedFind";
-                y++;
-            }
+            //if (settings.AddValidForAdvancedFind)
+            //{
+            //    sheet.Cells[x, y].Value = "ValidFor AdvancedFind";
+            //    y++;
+            //}
 
-            if (settings.AddAuditInformation)
-            {
-                sheet.Cells[x, y].Value = "Audit Enabled";
-                y++;
-            }
+            //if (settings.AddAuditInformation)
+            //{
+            //    sheet.Cells[x, y].Value = "Audit Enabled";
+            //    y++;
+            //}
 
-            if (settings.AddFieldSecureInformation)
-            {
-                sheet.Cells[x, y].Value = "Secured";
-                y++;
-            }
+            //if (settings.AddFieldSecureInformation)
+            //{
+            //    sheet.Cells[x, y].Value = "Secured";
+            //    y++;
+            //}
 
-            if (settings.AddFormLocation)
-            {
-                sheet.Cells[x, y].Value = "Form location";
-                y++;
-            }
+            //if (settings.AddFormLocation)
+            //{
+            //    sheet.Cells[x, y].Value = "Form location";
+            //    y++;
+            //}
 
-            sheet.Cells[x, y].Value = "Additional data";
-            y++;
+            //sheet.Cells[x, y].Value = "Additional data";
+            //y++;
 
             for (int i = 1; i <= y + 1; i++)
             {
@@ -1116,39 +1147,39 @@ namespace MsCrmTools.MetadataDocumentGenerator.Generation
             sheet.Cells[x, y].Value = "SQL Table Name";
             y++;
 
-            sheet.Cells[x, y].Value = "Plural Display Name";
-            y++;
+            //sheet.Cells[x, y].Value = "Plural Display Name";
+            //y++;
 
-            sheet.Cells[x, y].Value = "Description";
-            y++;
+            //sheet.Cells[x, y].Value = "Description";
+            //y++;
 
-            sheet.Cells[x, y].Value = "Schema Name";
-            y++;
+            //sheet.Cells[x, y].Value = "Schema Name";
+            //y++;
 
-            sheet.Cells[x, y].Value = "Logical Name";
-            y++;
+            //sheet.Cells[x, y].Value = "Logical Name";
+            //y++;
 
-            sheet.Cells[x, y].Value = "Object Type Code";
-            y++;
+            //sheet.Cells[x, y].Value = "Object Type Code";
+            //y++;
 
-            sheet.Cells[x, y].Value = "Is Custom Entity";
-            y++;
+            //sheet.Cells[x, y].Value = "Is Custom Entity";
+            //y++;
 
-            if (settings.AddAuditInformation)
-            {
-                sheet.Cells[x, y].Value = "Audit Enabled";
-                y++;
-            }
+            //if (settings.AddAuditInformation)
+            //{
+            //    sheet.Cells[x, y].Value = "Audit Enabled";
+            //    y++;
+            //}
 
-            sheet.Cells[x, y].Value = "Ownership Type";
-            y++;
+            //sheet.Cells[x, y].Value = "Ownership Type";
+            //y++;
 
-            var theType = typeof(EntityMetadata);
-            foreach (var property in theType.GetProperties().OrderBy(p => p.Name))
-            {
-                sheet.Cells[x, y].Value = property.Name;
-                y++;
-            }
+            //var theType = typeof(EntityMetadata);
+            //foreach (var property in theType.GetProperties().OrderBy(p => p.Name))
+            //{
+            //    sheet.Cells[x, y].Value = property.Name;
+            //    y++;
+            //}
 
             for (int i = 1; i < y; i++)
             {
